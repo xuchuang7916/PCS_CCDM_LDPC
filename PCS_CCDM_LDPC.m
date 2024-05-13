@@ -2,8 +2,8 @@ clear,clc
 
 close all
 %% Part I PCS symbols generation
-lam = 0.03;             %0.015 for256QAM  0.04 for 64qam  0.064=32QAM 0.13338=16qam
-m = 3;
+lam = 0.1;             %0.015 for256QAM  0.04 for 64qam  0.064=32QAM 0.13338=16qam
+m = 2;
 mQAM = 2^(2*m);         % order of the mQAM
 level = 1:2:2^m-1;      % amplitude level of single-side PAM
 pOpt = exp(-lam*level.^2)./sum(exp(-lam*level.^2)); % Probability distribution of the single-side PAM
@@ -12,7 +12,7 @@ PAS_len = 1800;         % length of one PAS sequence
 % calculate bits input length kc, and the optimal n-type approximation (nc)
 % one CCDM block contains PAS_len amplitudes, and encoded num_info_bits bits
 [p_quant,num_info_bits,n_i] = ccdm.initialize(pOpt,PAS_len);
-PAS_levels = n_i; % number of different amplitudes, like 2 for {1,3}, 4 for {1,3,5,7}
+PAS_levels = n_i;       % number of different amplitudes, like 2 for {1,3}, 4 for {1,3,5,7}
 m = log2(length(PAS_levels))+1; % the m in {1,3,5,...,2^m-1}
 pwr_scale = 2*sum((1:2:2^m-1).^2.*p_quant');
 H_PAS_design_PAS = -sum(pOpt.*log2(pOpt));        % Entropy of the PAS signal
@@ -86,10 +86,10 @@ code_sym_seq_sign_YQ = signs_YQ.*code_sym_seq_YQ;
 gamma = U2_num/V1_num;
 
 %% this  is for VPI reading the bits and mapping into QAM and send
-Tx_X = complex(code_sym_seq_sign_XI,code_sym_seq_sign_XQ);
-Tx_Y = complex(code_sym_seq_sign_YI,code_sym_seq_sign_YQ);
+Tx_X = code_sym_seq_sign_XI + 1j*code_sym_seq_sign_XQ;
+Tx_Y = code_sym_seq_sign_YI + 1j*code_sym_seq_sign_YQ;
 
-SNR_vec  = 12:30;
+SNR_vec  = 10:22;
 for ind = 1:length(SNR_vec)
     SNR = SNR_vec(ind);
     Rx_X = awgn(Tx_X,SNR,'measured');
@@ -158,16 +158,15 @@ for ind = 1:length(SNR_vec)
     bits_char1 = reshape(temp1,log2(mQAM),[]);
     SentBitBySymbol_X = double(bits_char1)-double('0');% each col is the bit of a symbol
     SecTerm_X = sum(sum(log2(1+exp((-1).^SentBitBySymbol_X.*-LLR_vector_QAM_X))))/length(Tx_X);
-    AIR_X = FirTerm_X-SecTerm_X-(H_PAS_design_PAS - R_DM);
+    AIR_X(ind) = FirTerm_X-SecTerm_X-(H_PAS_design_PAS - R_DM);
     
     temp2 = convertStringsToChars(bit_sequence_Y);
     temp2(temp2==' ')=[];
     bits_char2 = reshape(temp2,log2(mQAM),[]);
     SentBitBySymbol_Y = double(bits_char2)-double('0');% each col is the bit of a symbol
     SecTerm_Y = sum(sum(log2(1+exp((-1).^SentBitBySymbol_Y.*-LLR_vector_QAM_Y))))/length(Tx_Y);
-    AIR_Y = FirTerm_Y-SecTerm_Y-(H_PAS_design_PAS - R_DM);
-    
-    AIR(ind) = (AIR_X + AIR_Y)/2;
+    AIR_Y(ind) = FirTerm_Y-SecTerm_Y-(H_PAS_design_PAS - R_DM);
+   
     %% FEC LDPC Decoder
     pwr_scale = 2*sum((1:2:2^m-1).^2*p_quant);
     
@@ -213,10 +212,11 @@ for ind = 1:length(SNR_vec)
     FEC_result(ind) = mean([BER_FEC_XI,BER_FEC_XQ,BER_FEC_YI,BER_FEC_YQ]);
     Raw_result(ind) = mean([BER_Raw_XI,BER_Raw_XQ,BER_Raw_YI,BER_Raw_YQ]);
 end
-
+AIR = AIR_X + AIR_Y;
 figure(2)
-plot(SNR_vec, AIR,'*-');grid on
-xlabel('SNR  (dB)');ylabel('AIR  (bits/sym)')
+plot(SNR_vec, AIR_X,'*-',SNR_vec ,AIR_Y,'*-',SNR_vec, AIR,'*-');grid on
+xlabel('SNR  (dB)');ylabel('AIR  (bits/sym)');
+legend('AIR X','AIR Y','AIR DP')
 figure(3)
 semilogy(SNR_vec,Raw_result,'*-',SNR_vec,FEC_result,'*-');grid on
 xlabel('SNR  (dB?');ylabel('BER');
