@@ -1,3 +1,6 @@
+% Copyright (c) 2026 Chuang Xu
+% Licensed under the MIT License. See LICENSE file for details.
+
 clear,clc
 
 close all
