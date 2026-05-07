@@ -1,3 +1,6 @@
+% Copyright (c) 2026 Chuang Xu
+% Licensed under the MIT License. See LICENSE file for details.
+
 function BER_FEC = DeFEC(LLR_vector,V1_bits,U2_bits,ldpcdecoder);
 first_line = LLR_vector(1,:);
 rest = LLR_vector(2:end,:);
